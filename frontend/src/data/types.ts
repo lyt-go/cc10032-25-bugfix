@@ -5,7 +5,8 @@ export type EntryRow = {
   status: string
   pending: boolean
   abnormal: boolean
-  [field: string]: string | number | boolean
+  // 后端会在行内同步 connectivity / eligibility / source_selection 等嵌套回执
+  [field: string]: unknown
 }
 
 export type ModuleMeta = {
@@ -30,6 +31,36 @@ export type PageResult = {
 export type ActionResult = {
   ok: boolean
   message: string
+  entry?: EntryRow | null
+  detail?: Record<string, unknown> | null
+  field_errors?: Record<string, string> | string[] | null
+}
+
+export type SourceEligibility = {
+  eligible: boolean
+  confirmed?: boolean
+  stale_enabled?: boolean
+  reasons?: string[]
+  abnormal_fields?: string[]
+  field_errors?: Record<string, string>
+  next_eligibility?: { eligible: boolean; reason?: string; required_action?: string }
+}
+
+export type AvailableSourcesResult = {
+  available: EntryRow[]
+  sources?: EntryRow[]
+  unavailable: Array<{
+    id: number
+    源标识?: string
+    status?: string
+    reason: string
+    abnormal_fields?: string[]
+    stale_enabled?: boolean
+  }>
+  empty: boolean
+  empty_reason: string | null
+  空态原因?: string | null
+  reason?: string | null
 }
 
 export type OverviewResult = {

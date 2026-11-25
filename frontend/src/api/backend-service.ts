@@ -1,6 +1,12 @@
 import { request } from './client'
 import { moduleMeta } from '@/data/modules'
-import type { ActionResult, EntryRow, OverviewResult, PageResult } from '@/data/types'
+import type {
+  ActionResult,
+  AvailableSourcesResult,
+  EntryRow,
+  OverviewResult,
+  PageResult,
+} from '@/data/types'
 
 export { moduleMeta }
 
@@ -25,14 +31,72 @@ export async function createEntry(
   return await response.json()
 }
 
+export async function updateEntry(
+  key: string,
+  id: number,
+  values: Record<string, unknown>,
+): Promise<ActionResult> {
+  const response = await request(`/api/${key}/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ values }),
+  })
+  return await response.json()
+}
+
 export async function runAction(
   key: string,
   id: number,
   action: string,
+  extra: Record<string, unknown> = {},
 ): Promise<ActionResult> {
   const response = await request(`/api/${key}/${id}/actions`, {
     method: 'POST',
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action, ...extra }),
+  })
+  return await response.json()
+}
+
+export async function checkConnectivity(id: number): Promise<ActionResult & Record<string, unknown>> {
+  const response = await request(`/api/stream_source/${id}/connectivity`, { method: 'POST' })
+  return await response.json()
+}
+
+export async function validateConcurrency(value: string): Promise<ActionResult> {
+  const response = await request('/api/stream_source/validate', {
+    method: 'POST',
+    body: JSON.stringify({ value }),
+  })
+  return await response.json()
+}
+
+export async function availableBatchSources(): Promise<AvailableSourcesResult> {
+  const response = await request('/api/batch_slice/sources/available')
+  if (!response.ok) throw new Error('可用流式源读取失败')
+  return await response.json()
+}
+
+export async function openBatchSelection(
+  batchId: number,
+  sourceId?: number,
+): Promise<ActionResult & Record<string, unknown>> {
+  const response = await request(`/api/batch_slice/${batchId}/selection`, {
+    method: 'POST',
+    body: JSON.stringify(sourceId ? { source_id: sourceId } : {}),
+  })
+  return await response.json()
+}
+
+export async function confirmBatchSelection(
+  batchId: number,
+  options: { token?: string; execute?: boolean; conflictPolicy?: 'snapshot' | 'abort' } = {},
+): Promise<ActionResult & Record<string, unknown>> {
+  const response = await request(`/api/batch_slice/${batchId}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({
+      token: options.token,
+      execute: options.execute ?? false,
+      conflict_policy: options.conflictPolicy ?? 'snapshot',
+    }),
   })
   return await response.json()
 }

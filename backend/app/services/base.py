@@ -82,6 +82,20 @@ class BaseModuleService:
         entry["abnormal"] = action in self.NEGATIVE_ACTIONS
         return entry, f"{self.ENTITY}已{action}"
 
+    def execute_action(self, entry_id: int, action: str, payload: Any | None = None) -> dict[str, Any]:
+        """富结果动作入口：默认适配 run_action 的 (entry, message) 二元契约。
+
+        子类可覆盖以返回 issues/detail/field_errors 等完整验收信息。
+        """
+        entry, message = self.run_action(entry_id, action)
+        detail = entry.get("last_action_result") if entry is not None else None
+        return {
+            "ok": entry is not None,
+            "message": message,
+            "entry": entry,
+            "detail": detail if isinstance(detail, dict) else None,
+        }
+
     def domain_snapshot(self) -> dict[str, Any]:
         """输出模块级数据质量快照，供跨模块消费和题位源码锚点使用。"""
         rows = store.rows(self.MODULE)

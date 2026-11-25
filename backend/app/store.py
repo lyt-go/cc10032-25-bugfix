@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import hashlib
+import threading
 import time
 from typing import Any
 
@@ -133,6 +134,13 @@ class Store:
         self._lineage_graph: dict[str, list[dict[str, Any]]] = {}
         # 归档清单（cold_archive → retention 共享）
         self._archive_manifest: list[dict[str, Any]] = []
+        # 流式源定义校验回执台账（stream_source 校验 → batch_slice 选源共享）
+        self._source_receipts: list[dict[str, Any]] = []
+        # 常见近义命名，指向同一份台账
+        self._verification_receipts = self._source_receipts
+        self._source_definition_receipts = self._source_receipts
+        # 串行化“配置更正提交 / 分片确认提交”，保证分片只读一份一致定义
+        self.lock = threading.RLock()
 
     # ---------- 基础 CRUD ----------
     def module_names(self) -> list[str]:
@@ -239,6 +247,20 @@ class Store:
 
     def archive_manifest_for_table(self, table_name: str) -> list[dict[str, Any]]:
         return [r for r in self._archive_manifest if r.get("源表名称") == table_name]
+
+    # ---------- 流式源校验回执台账 ----------
+    def add_source_receipt(self, receipt: dict[str, Any]) -> dict[str, Any]:
+        with self.lock:
+            receipt.setdefault("receipt_id", f"RCP-{len(self._source_receipts) + 1:06d}")
+            receipt.setdefault("ts", time.time())
+            self._source_receipts.append(receipt)
+            return receipt
+
+    def source_receipts(self, source_id: int | None = None) -> list[dict[str, Any]]:
+        with self.lock:
+            if source_id is None:
+                return list(self._source_receipts)
+            return [r for r in self._source_receipts if int(r.get("source_id", -1)) == int(source_id)]
 
 
 store = Store()
